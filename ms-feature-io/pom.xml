@@ -23,7 +23,7 @@
     </dependency>
     <dependency>
     	<groupId>se.lth.immun</groupId>
-    	<artifactId>MsFeatureProtocol</artifactId>
+    	<artifactId>MSFeatureProtocol</artifactId>
     	<version>0.1.0</version>
     </dependency>
    </dependencies>

@@ -46,11 +46,11 @@ case class MsHill(
 
 object MsFeatureFile {
 
-	def read(f:File) = {
+	def read(f:File, verbose:Boolean) = {
 		val r = new BufferedInputStream(new FileInputStream(f))
-		val buffer = new Array[Byte](2048)
+		val buffer = new Array[Byte](2048*2048)
 		
-		if (!parseSized(r, buffer))
+		if (!parseSized(r, buffer, verbose))
 			throw new Exception("Error reading MsgSize!")
 		
 		val rtMap = RtMap.parseFrom(buffer)
@@ -61,7 +61,7 @@ object MsFeatureFile {
 		val rts = rtMap.getRtList.map(_ * mult)
 		
 		val features = new ArrayBuffer[MsFeature]
-		while (parseSized(r, buffer)) 
+		while (parseSized(r, buffer, verbose)) 
 			features += readMsFeature(buffer, rts)
 		
 		MsFeatures(rts, features)
@@ -111,23 +111,32 @@ object MsFeatureFile {
 				intensity)
 	}
 	
-	def parseSized(r:BufferedInputStream, b:Array[Byte]) = {
+	def parseSized(r:BufferedInputStream, b:Array[Byte], verbose:Boolean) = {
 		if (r.read(b, 0, 5) == 5) {
 			val n = MsgSize.parseFrom(b).getSize
+			if (verbose)
+				println("reading msg of n=%d bytes".format(n))
 			if (r.read(b, 0, n) == n)
 				true
 			else false
 		} else false
 	}
 	
-	def write(f:File, features:MsFeatures, rtUnit:RtUnit = RtUnit.MINUTE) = {
+	def write(f:File, features:MsFeatures, rtUnit:RtUnit = RtUnit.MINUTE, verbose:Boolean) = {
 		val w = new BufferedOutputStream(new FileOutputStream(f))
 		val rtMap = RtMap.newBuilder.setUnit(rtUnit)
 		for (rt <- features.rtMap) rtMap.addRt(rt)
 		
-		writeMsg(w, rtMap.build.toByteArray)
-		for (f <- features.features)
-			writeMsg(w, toFeature(f).toByteArray)
+		val rtMapMsg = rtMap.build
+		if (verbose)
+			println(rtMapMsg.toString)
+		writeMsg(w, rtMapMsg.toByteArray, verbose)
+		for (f <- features.features) {
+			val featureMsg = toFeature(f)
+			if (verbose)
+				println(featureMsg.toString)
+			writeMsg(w, featureMsg.toByteArray, verbose)
+		}
 	}
 	
 	def toFeature(f:MsFeature):Feature = {
@@ -154,8 +163,11 @@ object MsFeatureFile {
 		b.build
 	}
 	
-	def writeMsg(w:BufferedOutputStream, bytes:Array[Byte]) = {
+	def writeMsg(w:BufferedOutputStream, bytes:Array[Byte], verbose:Boolean = false) = {
 		val n = bytes.length
+		if (verbose)
+			println("writing msg, n(bytes): %d".format(n))
+		
 		w.write(MsgSize.newBuilder().setSize(n).build.toByteArray)
 		w.write(bytes)
 	}
