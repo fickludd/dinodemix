@@ -1,0 +1,49 @@
+package se.lth.immun.protocol;
+
+option java_package = "se.lth.immun.protocol";
+option java_outer_classname = "MSFeatureProtocol";
+
+/*
+	A MS-Feature file has
+	1 MsgSize	describes the byte-size of the following RtMap
+	1 RtMap		describes how to map hill intensity indices to rts
+	1-n
+		MsgSize		give byte-size of the following Feature
+		Feature 	describes one MS feature consisting of several hills
+*/
+
+enum RtUnit {
+	SECOND = 0;
+	MINUTE = 1;
+}
+
+message RtMap {
+	required RtUnit unit = 1;
+	repeated double rt = 2;
+}
+
+message Hill {
+	required uint32 startIndex = 1;
+	required uint32 endIndex = 2;
+	required double mz = 3;
+	optional double mzErr = 4;
+	optional float fwhm = 5;
+	optional float rtApex = 6;
+	optional float intensityApex = 7;
+	repeated float intensity = 10;
+}
+
+message Feature {
+	required double mz = 1;
+	required uint32 z = 2;
+	required double mass = 3;
+	optional float rtApex = 4;
+	optional float intensityApex = 5;
+	optional float intensitySum = 6;
+	optional float averagineCorr = 7;
+	repeated Hill hill = 10;
+}
+
+message MsgSize {
+	required fixed32 size = 1;
+}
