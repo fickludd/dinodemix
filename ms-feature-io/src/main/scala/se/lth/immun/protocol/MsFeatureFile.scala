@@ -12,6 +12,8 @@ import se.lth.immun.protocol.MSFeatureProtocol.RtUnit
 import se.lth.immun.protocol.MSFeatureProtocol.Feature
 import se.lth.immun.protocol.MSFeatureProtocol.Hill
 
+import com.google.protobuf.CodedInputStream
+
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
 
@@ -47,13 +49,12 @@ case class MsHill(
 object MsFeatureFile {
 
 	def read(f:File, verbose:Boolean) = {
-		val r = new BufferedInputStream(new FileInputStream(f))
-		val buffer = new Array[Byte](2048*2048)
+		val r = new ProtoBufferedFileInputStream(2048*2048, f)
 		
-		if (!parseSized(r, buffer, verbose))
+		if (!parseAndCodeSize(r, verbose))
 			throw new Exception("Error reading MsgSize!")
 		
-		val rtMap = RtMap.parseFrom(buffer)
+		val rtMap = RtMap.parseFrom(r.cis)
 		val mult = rtMap.getUnit match {
 			case RtUnit.MINUTE => 1.0
 			case RtUnit.SECOND => 1 / 60.0
@@ -61,14 +62,14 @@ object MsFeatureFile {
 		val rts = rtMap.getRtList.map(_ * mult)
 		
 		val features = new ArrayBuffer[MsFeature]
-		while (parseSized(r, buffer, verbose)) 
-			features += readMsFeature(buffer, rts)
+		while (parseAndCodeSize(r, verbose)) 
+			features += readMsFeature(r, rts)
 		
 		MsFeatures(rts, features)
 	}
 	
-	def readMsFeature(buffer:Array[Byte], rtMap:Seq[Double]):MsFeature = {
-		val f = Feature.parseFrom(buffer)
+	def readMsFeature(r:ProtoBufferedFileInputStream, rtMap:Seq[Double]):MsFeature = {
+		val f = Feature.parseFrom(r.cis)
 		val hills = f.getHillList.map(toMsHill(_, rtMap))
 		val rtApex = 
 			if (f.hasRtApex) f.getRtApex 
@@ -111,14 +112,12 @@ object MsFeatureFile {
 				intensity)
 	}
 	
-	def parseSized(r:BufferedInputStream, b:Array[Byte], verbose:Boolean) = {
-		if (r.read(b, 0, 5) == 5) {
-			val n = MsgSize.parseFrom(b).getSize
+	def parseAndCodeSize(r:ProtoBufferedFileInputStream, verbose:Boolean) = {
+		if (r.ensure(5)) {
+			val n = MsgSize.parseFrom(r.cis).getSize
 			if (verbose)
 				println("reading msg of n=%d bytes".format(n))
-			if (r.read(b, 0, n) == n)
-				true
-			else false
+			r.ensure(n)
 		} else false
 	}
 	
@@ -128,15 +127,16 @@ object MsFeatureFile {
 		for (rt <- features.rtMap) rtMap.addRt(rt)
 		
 		val rtMapMsg = rtMap.build
+		writeMsg(w, rtMapMsg.toByteArray, verbose)
 		if (verbose)
 			println(rtMapMsg.toString)
-		writeMsg(w, rtMapMsg.toByteArray, verbose)
 		for (f <- features.features) {
 			val featureMsg = toFeature(f)
+			writeMsg(w, featureMsg.toByteArray, verbose)
 			if (verbose)
 				println(featureMsg.toString)
-			writeMsg(w, featureMsg.toByteArray, verbose)
 		}
+		w.close
 	}
 	
 	def toFeature(f:MsFeature):Feature = {
@@ -165,10 +165,10 @@ object MsFeatureFile {
 	
 	def writeMsg(w:BufferedOutputStream, bytes:Array[Byte], verbose:Boolean = false) = {
 		val n = bytes.length
+		val sizeMsgBytes = MsgSize.newBuilder().setSize(n).build.toByteArray
 		if (verbose)
-			println("writing msg, n(bytes): %d".format(n))
-		
-		w.write(MsgSize.newBuilder().setSize(n).build.toByteArray)
+			println("writing msg, n(bytes): %d+%d".format(sizeMsgBytes.length, n))
+		w.write(sizeMsgBytes)
 		w.write(bytes)
 	}
 }
