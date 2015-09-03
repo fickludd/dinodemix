@@ -130,7 +130,7 @@ object Demixer extends CLIApp {
 		//val features = readFeatures(new File(params.features)).sortBy(_.rtEnd)
 		val msFeatures = 
 			if (params.msFeatures.value != "")
-				MsFeatureFile.read(new File(params.msFeatures.value))
+				MsFeatureFile.read(new File(params.msFeatures.value), params.verbose)
 			else MsFeatures(Nil, Nil)
 		val validFeatures = msFeatures.features.filter(f => f.z >= params.featureMinZ && f.z <= params.featureMaxZ)
 		println("\n read %d features of which %d have z=%d-%d".format(
@@ -334,6 +334,8 @@ object Demixer extends CLIApp {
 					adjustByDino(df, osd.spectrum).write(w)
 				case op:OrigPrec =>
 					fixOrigPrec(op, osd.spectrum).write(w)
+				case ss:SpectrumSuggestion =>
+					
 				
 			}
 		}
@@ -349,6 +351,13 @@ object Demixer extends CLIApp {
 	def adjustByDino(df:IntFeature, s:Spectrum):Spectrum = {
 		val si = makeSelectedIon(df.feature.mz, df.feature.z, df.intensity)
 		setPrecursor(si, df.iw, df.a, s)
+	}
+	
+	
+	
+	def adjustBySuggestion(ss:SpectrumSuggestion, s:Spectrum):Spectrum = {
+		val si = makeSelectedIon(ss.mz, ss.z, ss.intensity)
+		setPrecursor(si, ss.iw, ss.a, s)
 	}
 	
 	
