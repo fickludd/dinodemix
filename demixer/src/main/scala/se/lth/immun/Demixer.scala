@@ -130,7 +130,7 @@ object Demixer extends CLIApp {
 		//val features = readFeatures(new File(params.features)).sortBy(_.rtEnd)
 		val features = 
 			if (params.msFeatures.value != "")
-				MsFeatureFile.read(new File(params.msFeatures.value))
+				MsFeatureFile.read(new File(params.msFeatures.value), params.verbose)
 			else MsFeatures(Nil, Nil)
 		println("\n read %d features".format(features.features.length))
 		
@@ -215,7 +215,7 @@ object Demixer extends CLIApp {
 				
 				val t0 = System.currentTimeMillis
 				val gs = GhostSpectrum.fromSpectrum(s)
-				val complementaryFeatures = spectralPrecursorGuesses(gs, precDef.head.iw, precDef.head.a) // pre-sorted
+				val complementaryFeatures = List[SpectrumSuggestion]() //spectralPrecursorGuesses(gs, precDef.head.iw, precDef.head.a) // pre-sorted
 				
 		
 				if (params.verbose && msLevel.exists(_ == 2)) {
@@ -327,6 +327,8 @@ object Demixer extends CLIApp {
 					adjustByDino(df, osd.spectrum).write(w)
 				case op:OrigPrec =>
 					fixOrigPrec(op, osd.spectrum).write(w)
+				case ss:SpectrumSuggestion =>
+					
 				
 			}
 		}
@@ -342,6 +344,13 @@ object Demixer extends CLIApp {
 	def adjustByDino(df:IntFeature, s:Spectrum):Spectrum = {
 		val si = makeSelectedIon(df.feature.mz, df.feature.z, df.intensity)
 		setPrecursor(si, df.iw, df.a, s)
+	}
+	
+	
+	
+	def adjustBySuggestion(ss:SpectrumSuggestion, s:Spectrum):Spectrum = {
+		val si = makeSelectedIon(ss.mz, ss.z, ss.intensity)
+		setPrecursor(si, ss.iw, ss.a, s)
 	}
 	
 	
