@@ -128,11 +128,17 @@ object Demixer extends CLIApp {
 		println("  out file: "+outFile)
 		
 		//val features = readFeatures(new File(params.features)).sortBy(_.rtEnd)
-		val features = 
+		val msFeatures = 
 			if (params.msFeatures.value != "")
 				MsFeatureFile.read(new File(params.msFeatures.value))
 			else MsFeatures(Nil, Nil)
-		println("\n read %d features".format(features.features.length))
+		val validFeatures = msFeatures.features.filter(f => f.z >= params.featureMinZ && f.z <= params.featureMaxZ)
+		println("\n read %d features of which %d have z=%d-%d".format(
+				msFeatures.features.length, 
+				validFeatures.length, 
+				params.featureMinZ.value, 
+				params.featureMaxZ.value
+			))
 		
 		
 		val outSpectra = new ArrayBuffer[OutSpectrumDef]
@@ -144,7 +150,7 @@ object Demixer extends CLIApp {
 		val mzML = 
 			MzML.fromFile(r, new MzMLDataHandlers(
 				n => println(" reading %d spectra".format(n)),
-				handleSpectrum(features, outSpectra),
+				handleSpectrum(validFeatures, msFeatures.rtMap, outSpectra),
 				() => _,
 				() => _
 			))
@@ -168,7 +174,8 @@ object Demixer extends CLIApp {
 	var iStart = 0
 	var iEnd = 0
 	def handleSpectrum(
-			msFeatures:MsFeatures, 
+			features:Seq[MsFeature], 
+			rtMap:Seq[Double],
 			spectra:ArrayBuffer[OutSpectrumDef]
 	)(
 			s:Spectrum
@@ -197,8 +204,8 @@ object Demixer extends CLIApp {
 				println("No scanStartTime found for spec num %d".format(s.index))
 			
 			case (Some(2), Some(precDef), Some(scanStartTime)) =>
-				iStart = msFeatures.features.indexWhere(_.rtStart < scanStartTime, iStart)
-				iEnd = msFeatures.features.indexWhere(_.rtEnd < scanStartTime, iEnd)
+				iStart = features.indexWhere(_.rtStart < scanStartTime, iStart)
+				iEnd = features.indexWhere(_.rtEnd < scanStartTime, iEnd)
 				
 				val origPcs = origPrecursors(s)
 				
@@ -207,22 +214,22 @@ object Demixer extends CLIApp {
 					i <- iStart until iEnd
 					mzRange <- precDef
 				} {
-					val f = msFeatures.features(i)
-					val ionMass = featureMassOverlap(f, msFeatures.rtMap, scanStartTime, mzRange)
+					val f = features(i)
+					val ionMass = featureMassOverlap(f, rtMap, scanStartTime, mzRange)
 					if (ionMass > 0)
 						ms1Features += IntFeature(ionMass, f, mzRange.iw, mzRange.a)
 				}
 				
 				val t0 = System.currentTimeMillis
 				val gs = GhostSpectrum.fromSpectrum(s)
-				val complementaryFeatures = spectralPrecursorGuesses(gs, precDef.head.iw, precDef.head.a) // pre-sorted
+				val complementaryFeatures = List[SpectrumSuggestion]() //spectralPrecursorGuesses(gs, precDef.head.iw, precDef.head.a) // pre-sorted
 				
 		
 				if (params.verbose && msLevel.exists(_ == 2)) {
 					println("\n ### SPECTRUM %6d n=%d".format(s.index, gs.mzs.length))
 					println(gs.intensities.sorted.grouped(10).map(xs => "%.1e".format(xs.sum / xs.length)).mkString(" "))
 				}
-					//if (params.verbose)
+				//if (params.verbose)
 				//	println(System.currentTimeMillis - t0 + " ms")
 				
 				val featurePcs = zip(ms1Features.sortBy(_.feature.mz), origPcs.sortBy(_.mz), complementaryFeatures, params.origPrecMzDiff)

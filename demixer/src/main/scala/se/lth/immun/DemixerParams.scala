@@ -15,6 +15,9 @@ class DemixerParams extends Params {
 	val maxNewSpectra = 3			## "The maximum new precursored spectra to introduce (most intense precursors will be used)"
 	val precursorGuessPPM = 5.0		## "Allowed PPM difference to merge different complementary precursor guesses"
 	
+	val featureMinZ = 2				## "Minimum feature charge state to consider for Demixing"
+	val featureMaxZ = 100			## "Maximum feature charge state to consider for Demixing"
+	
 	val readDebugFreq = 200			## "Output read status row every nth spectrum if verbose"
 	val verbose = false				## "set to enable a lot of output"
 	
