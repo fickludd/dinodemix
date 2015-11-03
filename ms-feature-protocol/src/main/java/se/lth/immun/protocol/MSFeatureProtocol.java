@@ -2,7 +2,7 @@
 // source: msfeature.proto
 
 package se.lth.immun.protocol;
-
+ 
 public final class MSFeatureProtocol {
   private MSFeatureProtocol() {}
   public static void registerAllExtensions(
@@ -12,7 +12,7 @@ public final class MSFeatureProtocol {
    * Protobuf enum {@code se.lth.immun.protocol.RtUnit}
    */
   public enum RtUnit
-      implements com.google.protobuf.ProtocolMessageEnum {
+  		implements com.google.protobuf.ProtocolMessageEnum {
     /**
      * <code>SECOND = 0;</code>
      */
