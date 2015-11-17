@@ -267,7 +267,7 @@ object Demixer extends CLIApp {
 				//if (params.verbose)
 				//	println(System.currentTimeMillis - t0 + " ms")
 				
-				val featurePcs = zip(ms1Features.sortBy(_.feature.mz), origPcs.sortBy(_.mz), complementaryFeatures, params.origPrecMzDiff)
+				val featurePcs = zip(ms1Features.sortBy(_.feature.mz), origPcs.sortBy(_.mz), complementaryFeatures, params.precursorGuessPPM)
 				
 				val (oldPcs, newPcs) = featurePcs.partition(_.orig.nonEmpty)
 				
@@ -421,7 +421,7 @@ object Demixer extends CLIApp {
 				}
 			
 			val scanNum = parseScanNum(osd.spectrum.id)
-			s.id = s.id + " scan=%d precRank=%d".format(scanNum, j)
+			s.id = s.id + " scan=%d precRank=%d".format(scanNum, j+1)
 			
 			s.write(w, null, None, None)
 		}
@@ -581,6 +581,9 @@ object Demixer extends CLIApp {
 		
 		def getOpt[X](xs:Seq[X], i:Int) =
 			if (i < xs.length) Some(xs(i)) else None
+			
+		def isSame[T <: Ion](t:T, ref:Ion, ppm:Double) =
+			if (t.within(ref, ppm) && t.z == ref.z) Some(t) else None 
 		
 		val res = new ArrayBuffer[SyncedPrec]
 		while (ifs < fs.length || iop < origPcs.length || icompl < complSpectra.length) {
@@ -588,10 +591,10 @@ object Demixer extends CLIApp {
 			val op 		= getOpt(origPcs, iop)
 			val compl 	= getOpt(complSpectra, icompl)
 			
-			val mz = Array(f, op, compl).flatten.minBy(_.mz)
-			val fSyn = f.flatMap(_.withinOpt(mz, ppm))
-			val opSyn = op.flatMap(_.withinOpt(mz, ppm))
-			val complSyn = compl.flatMap(_.withinOpt(mz, ppm))
+			val lowMzIon = Array(f, op, compl).flatten.minBy(_.mz)
+			val fSyn = f.flatMap(isSame(_, lowMzIon, ppm))
+			val opSyn = op.flatMap(isSame(_, lowMzIon, ppm))
+			val complSyn = compl.flatMap(isSame(_, lowMzIon, ppm))
 			
 			if (fSyn.isDefined) ifs += 1
 			if (opSyn.isDefined) iop += 1

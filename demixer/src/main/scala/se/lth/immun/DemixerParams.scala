@@ -11,7 +11,7 @@ class DemixerParams extends Params {
 	
 	val msFeatures = ""				## "MsFeature file with features from the mzML"
 	
-	val origPrecMzDiff = 0.1 		## "include original precursor unless it's within diff to dino feature"
+	val origPrecMzDiffPPM = 10 		## "include original precursor unless it's within diff to dino feature"
 	val maxNewSpectra = 3			## "The maximum new precursored spectra to introduce (most intense precursors will be used)"
 	val precursorGuessPPM = 5.0		## "Allowed PPM difference to merge different complementary precursor guesses"
 	
